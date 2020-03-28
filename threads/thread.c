@@ -28,6 +28,7 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -62,6 +63,11 @@ static void init_thread (struct thread *, const char *name, int priority);
 static void do_schedule(int status);
 static void schedule (void);
 static tid_t allocate_tid (void);
+
+
+//bool pri_comp(struct list_elem *e1, struct list_elem *e2, void *aux);
+
+
 
 /* Returns true if T appears to point to a valid thread. */
 #define is_thread(t) ((t) != NULL && (t)->magic == THREAD_MAGIC)
@@ -207,6 +213,8 @@ thread_create (const char *name, int priority,
 	/* Add to run queue. */
 	thread_unblock (t);
 
+	if(thread_current()->priority < t->priority) thread_yield();
+
 	return tid;
 }
 
@@ -240,10 +248,17 @@ thread_unblock (struct thread *t) {
 
 	old_level = intr_disable ();
 	ASSERT (t->status == THREAD_BLOCKED);
-	list_push_back (&ready_list, &t->elem);
+	//list_push_back (&ready_list, &t->elem);
+	list_insert_ordered(&ready_list, &t->elem, &pri_comp, 0);
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
+
+
+bool pri_comp(struct list_elem *e1, struct list_elem *e2, void *aux UNUSED){
+	return list_entry(e1, struct thread, elem)->priority >= list_entry(e2, struct thread, elem)->priority;
+}
+
 
 /* Returns the name of the running thread. */
 const char *
@@ -284,7 +299,7 @@ thread_exit (void) {
 #ifdef USERPROG
 	process_cleanup ();
 #endif
-
+	
 	/* Just set our status to dying and schedule another process.
 	   We will be destroyed during the call to schedule_tail(). */
 	intr_disable ();
@@ -302,8 +317,8 @@ thread_yield (void) {
 	ASSERT (!intr_context ());
 
 	old_level = intr_disable ();
-	if (curr != idle_thread)
-		list_push_back (&ready_list, &curr->elem);
+	if (curr != idle_thread) list_insert_ordered(&ready_list, &curr->elem, &pri_comp, 0);
+	//list_push_back (&ready_list, &curr->elem);
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -312,6 +327,20 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	struct list_elem *e = list_begin(&ready_list);
+
+	if(list_entry(e, struct thread, elem)->priority > new_priority){
+/*	
+		struct list_elem *e2;
+	        for(e2=list_begin(&ready_list);e2!=list_end(&ready_list);e2=list_next(e2)){
+			if(list_entry(e2, struct thread, elem)->status == THREAD_READY) printf("priority %d thread, ",list_entry(e2, struct thread, elem)->priority);
+			printf("in the ready list\n");
+
+		}
+*/
+		thread_yield();
+
+	}
 }
 
 /* Returns the current thread's priority. */
@@ -408,6 +437,7 @@ init_thread (struct thread *t, const char *name, int priority) {
 	strlcpy (t->name, name, sizeof t->name);
 	t->tf.rsp = (uint64_t) t + PGSIZE - sizeof (void *);
 	t->priority = priority;
+	t->initial_priority = priority;
 	t->magic = THREAD_MAGIC;
 }
 
@@ -567,6 +597,7 @@ schedule (void) {
 		   schedule(). */
 		if (curr && curr->status == THREAD_DYING && curr != initial_thread) {
 			ASSERT (curr != next);
+			//list_insert_ordered(&destruction_req, &curr->elem, &pri_comp, 0);
 			list_push_back (&destruction_req, &curr->elem);
 		}
 
@@ -587,4 +618,9 @@ allocate_tid (void) {
 	lock_release (&tid_lock);
 
 	return tid;
+}
+
+bool is_idle(struct thread *t){
+
+	return t == idle_thread;
 }

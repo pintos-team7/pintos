@@ -87,7 +87,9 @@ struct thread {
 	enum thread_status status;          /* Thread state. */
 	char name[16];                      /* Name (for debugging purposes). */
 	int priority;                       /* Priority. */
-
+	
+	int initial_priority;
+	
 	/* Shared between thread.c and synch.c. */
 	struct list_elem elem;              /* List element. */
 
@@ -99,6 +101,8 @@ struct thread {
 	/* Owned by thread.c. */
 	struct intr_frame tf;               /* Information for switching */
 	unsigned magic;                     /* Detects stack overflow. */
+
+	int wakeup_time;
 };
 
 /* If false (default), use round-robin scheduler.
@@ -134,5 +138,6 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void do_iret (struct intr_frame *tf);
-
+bool is_idle(struct thread *);
+bool pri_comp(struct list_elem *, struct list_elem *, void *aux);
 #endif /* threads/thread.h */

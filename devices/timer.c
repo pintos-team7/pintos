@@ -20,6 +20,8 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+static struct list sleep_list;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -43,6 +45,7 @@ timer_init (void) {
 	outb (0x40, count >> 8);
 
 	intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+	list_init(&sleep_list);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -91,10 +94,25 @@ timer_elapsed (int64_t then) {
 void
 timer_sleep (int64_t ticks) {
 	int64_t start = timer_ticks ();
-
+	enum intr_level old_level;
 	ASSERT (intr_get_level () == INTR_ON);
+	/*
 	while (timer_elapsed (start) < ticks)
 		thread_yield ();
+	*/
+	old_level = intr_disable();
+
+	struct thread *t = thread_current();
+	
+	//if(is_idle(t)) printf("Idle thread is sleep\n");
+	//else printf("A thread %d is sleep until %d. list size : %d\n",t->tid,start+ticks,list_size(&sleep_list));
+
+	t->wakeup_time = start + ticks;
+	list_push_back(&sleep_list, &t->elem);
+	thread_block();
+	
+	intr_set_level(old_level);
+
 }
 
 /* Suspends execution for approximately MS milliseconds. */
@@ -120,12 +138,47 @@ void
 timer_print_stats (void) {
 	printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED) {
 	ticks++;
 	thread_tick ();
+
+	if(!list_empty(&sleep_list)){
+		
+		struct list_elem *e;
+		for(e=list_begin(&sleep_list);e!=list_end(&sleep_list);e=list_next(e)){
+			struct thread *t = list_entry(e, struct thread, elem);
+			
+			if(t->wakeup_time <= ticks && t->status == THREAD_BLOCKED){
+			/*	
+				for(struct list_elem *e2=list_begin(&sleep_list);e2!=list_end(&sleep_list);e2=list_next(e2)){
+					printf("%d  ",list_entry(e2, struct thread, elem)->tid);
+
+				}
+				printf("in the sleep list.\n");*/
+				list_remove(e);
+				e = list_prev(e);
+
+
+				thread_unblock(t);
+/*
+				for(struct list_elem *e2=list_begin(&sleep_list);e2!=list_end(&sleep_list);e2=list_next(e2)){
+					printf("%d  ",list_entry(e2, struct thread, elem)->tid);
+
+				}
+				printf("in the sleep list after unblock.\n");
+*/
+
+				
+				//printf("A thread %d is waken up\n",t->tid);
+
+				
+			
+			}
+		}
+	}
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
