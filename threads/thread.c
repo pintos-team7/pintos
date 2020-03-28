@@ -327,19 +327,12 @@ thread_yield (void) {
 void
 thread_set_priority (int new_priority) {
 	thread_current ()->priority = new_priority;
+	thread_current()->initial_priority = new_priority;
+
 	struct list_elem *e = list_begin(&ready_list);
 
 	if(list_entry(e, struct thread, elem)->priority > new_priority){
-/*	
-		struct list_elem *e2;
-	        for(e2=list_begin(&ready_list);e2!=list_end(&ready_list);e2=list_next(e2)){
-			if(list_entry(e2, struct thread, elem)->status == THREAD_READY) printf("priority %d thread, ",list_entry(e2, struct thread, elem)->priority);
-			printf("in the ready list\n");
-
-		}
-*/
 		thread_yield();
-
 	}
 }
 
@@ -439,6 +432,9 @@ init_thread (struct thread *t, const char *name, int priority) {
 	t->priority = priority;
 	t->initial_priority = priority;
 	t->magic = THREAD_MAGIC;
+	list_init(&t->lock_list);
+	t->lock_want = NULL;
+	//t->high_waiter_priority = 0;
 }
 
 /* Chooses and returns the next thread to be scheduled.  Should

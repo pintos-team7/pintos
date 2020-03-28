@@ -103,6 +103,9 @@ struct thread {
 	unsigned magic;                     /* Detects stack overflow. */
 
 	int wakeup_time;
+	struct list lock_list;
+	//int high_waiter_priority;
+	struct lock *lock_want;
 };
 
 /* If false (default), use round-robin scheduler.
