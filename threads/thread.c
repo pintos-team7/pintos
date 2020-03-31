@@ -11,6 +11,9 @@
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "intrinsic.h"
+#include "threads/fixed_point.h"
+
+
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -250,6 +253,17 @@ thread_unblock (struct thread *t) {
 	ASSERT (t->status == THREAD_BLOCKED);
 	//list_push_back (&ready_list, &t->elem);
 	list_insert_ordered(&ready_list, &t->elem, &pri_comp, 0);
+
+	// printf("from thread_unblock ready list change: ");
+
+ //    struct list_elem *temp;
+ //    for(temp = list_begin(&ready_list); temp!=list_end(&ready_list); temp = list_next(temp)){
+ //    	struct thread *t = list_entry(temp, struct thread, elem);
+ //    	printf("%s", t-> name);
+ //    	printf("%d", t-> priority);
+ //    }
+
+
 	t->status = THREAD_READY;
 	intr_set_level (old_level);
 }
@@ -319,6 +333,17 @@ thread_yield (void) {
 	old_level = intr_disable ();
 	if (curr != idle_thread) list_insert_ordered(&ready_list, &curr->elem, &pri_comp, 0);
 	//list_push_back (&ready_list, &curr->elem);
+	//
+	
+	// printf("from thread_yield ready list change: ");
+
+ //    stuct list_elem *temp;
+ //    for(temp = list_begin(&ready_list); temp!=list_end(&ready_list); temp = list_next(temp)){
+ //    	struct thread *t = list_entry(temp, struct thread, elem);
+ //    	printf("%s", t-> name);
+ //    	printf("%d", t-> priority);
+ //    }
+
 	do_schedule (THREAD_READY);
 	intr_set_level (old_level);
 }
@@ -456,6 +481,7 @@ next_thread_to_run (void) {
 	if (list_empty (&ready_list))
 		return idle_thread;
 	else
+
 		return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 

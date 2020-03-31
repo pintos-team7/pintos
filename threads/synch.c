@@ -219,14 +219,18 @@ lock_acquire (struct lock *lock) {
 	thread_current()->lock_want = lock;
 	
 	if(lock->holder != NULL){
-
+/*
 		if(lock->high_waiter_priority < thread_current()->priority){
 			lock->high_waiter_priority = thread_current()->priority;
 		}
-
+*/
 		struct thread *t = thread_current();
 
 		while(t->lock_want != NULL && t->lock_want->holder != NULL){
+
+			if(t->lock_want->high_waiter_priority < t->priority){
+				t->lock_want->high_waiter_priority = t->priority;
+			}
 
 			if(t->lock_want->holder->priority < t->priority){
 				t->lock_want->holder->priority = t->priority;
@@ -241,8 +245,15 @@ lock_acquire (struct lock *lock) {
 	//list_insert_ordered(&thread_current()->lock_list, &lock->elem, &waiter_pri_comp, 0);
 	
 	if(list_empty(&lock->semaphore.waiters)) lock->high_waiter_priority = 0;
-	else lock->high_waiter_priority = list_entry(list_begin(&lock->semaphore.waiters), struct thread, elem)->priority;
+	else{
+		struct thread *high_pri_t = list_entry(list_begin(&lock->semaphore.waiters), struct thread, elem);
+		for(struct list_elem *e = list_begin(&lock->semaphore.waiters);e!=list_end(&lock->semaphore.waiters);e=list_next(e)){
+			if(high_pri_t->priority < list_entry(e, struct thread, elem)->priority) high_pri_t = list_entry(e, struct thread, elem);
 
+		}
+	       	lock->high_waiter_priority = high_pri_t->priority;
+
+	}
 	thread_current()->lock_want = NULL;
 }
 
