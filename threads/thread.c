@@ -256,7 +256,7 @@ thread_unblock (struct thread *t) {
 
 
 bool pri_comp(struct list_elem *e1, struct list_elem *e2, void *aux UNUSED){
-	return list_entry(e1, struct thread, elem)->priority >= list_entry(e2, struct thread, elem)->priority;
+	return list_entry(e1, struct thread, elem)->priority > list_entry(e2, struct thread, elem)->priority;
 }
 
 
@@ -326,13 +326,22 @@ thread_yield (void) {
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) {
-	thread_current ()->priority = new_priority;
-	thread_current()->initial_priority = new_priority;
 
-	struct list_elem *e = list_begin(&ready_list);
+	if(list_empty(&thread_current()->lock_list) || new_priority > thread_current()->priority){ 
 
-	if(list_entry(e, struct thread, elem)->priority > new_priority){
-		thread_yield();
+		thread_current ()->priority = new_priority;
+		thread_current()->initial_priority = new_priority;
+
+		struct list_elem *e = list_begin(&ready_list);
+
+		if(list_entry(e, struct thread, elem)->priority > new_priority){
+			thread_yield();
+		}
+	}
+
+	else{
+
+		thread_current()->initial_priority = new_priority;
 	}
 }
 
